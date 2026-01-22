@@ -27,20 +27,19 @@
 #include <Adafruit_NeoPixel.h>
 //llibreries de inputs
 #include <AiEsp32RotaryEncoder.h>
-#include <RTClib.h>
 //llibreries propies
 #include "ota/ota.h"
 #include "wifi/wifi_manager.h"
 #include "neopixel/leds.h"
 #include "ntp/ntp.h"
+#include "espnow/espnow.h"
 
 // ================= MENU SETTING =================
 DateTime lastUpdateOTA;
-DateTime lastUpdateRTC;
 
 // --- OLED --- 
 #define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
+#define SCREEN_HEIGHT 32
 #define OLED_RESET -1
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
@@ -49,6 +48,9 @@ struct WiFiCred {
     const char* ssid;
     const char* pass;
 };
+
+//ntp
+int previousTime = -1;
 
 // --- OTA ---
 String FW_VERSION;
@@ -65,7 +67,7 @@ const char* firmwareURL = "https://github.com/quimturon/habitacio/releases/lates
 #define VERSION_ADDR 128  // Offset firmware
 
 // --- espNOW ---
-uint8_t controladorAdress[] = {0x84, 0x1F, 0xE8, 0x69, 0x3B, 0x9C};
+uint8_t controladorAdress[] = {0x80, 0xF3, 0xDA, 0x65, 0x5C, 0xB8};
 
 // --- ledStrips ---
 uint8_t bri0;
@@ -105,27 +107,23 @@ String callPreset(int stripIndex, int presetIndex) {
 #define ENC2_A 36
 #define ENC2_B 39
 
-#define ENC3_A 32
-#define ENC3_B 33
+#define ENC3_A 16
+#define ENC3_B 17
 #define ENC4_A 25
 #define ENC4_B 26
-#define ENC5_A 14
-#define ENC5_B 12
 
 #define ENCODER_STEPS 4
 
-#define BUTTON1 15
-#define BUTTON2 27
-#define BUTTON3 4
-#define BUTTON4 5
-#define BUTTON5 3
-#define ENC1_BTN 0
-#define ENC2_BTN 1
-#define ENC3_BTN 13
-#define ENC4_BTN 23
-#define ENC5_BTN -1 // no té botó
+#define BUTTON1 33
+#define BUTTON2 32
+#define BUTTON3 13
+#define BUTTON4 12
+#define ENC1_BTN 14
+#define ENC2_BTN 15
+#define ENC3_BTN 2
+#define ENC4_BTN 5
 
-bool buttonState[] = {0,0,0,0,0,0,0,0,0,0};
+bool buttonState[] = {0,0,0,0,0,0,0,0,};
 bool buttonState1 = 0;
 bool buttonState2 = 0;
 bool buttonState3 = 0;
@@ -134,8 +132,6 @@ bool buttonState5 = 0;
 bool buttonState6 = 0;
 bool buttonState7 = 0;
 bool buttonState8 = 0;
-bool buttonState9 = 0;
-bool buttonState10 = 0;
 
 bool lastButtonState1 = HIGH;
 bool lastButtonState2 = HIGH;
@@ -145,21 +141,14 @@ bool lastButtonState5 = HIGH;
 bool lastButtonState6 = HIGH;
 bool lastButtonState7 = HIGH;
 bool lastButtonState8 = HIGH;
-bool lastButtonState9 = HIGH;
-bool lastButtonState10 = HIGH;
 
 // ================= ROTARY ENCODERS =================
 AiEsp32RotaryEncoder enc1(ENC1_A, ENC1_B, ENC1_BTN, -1, ENCODER_STEPS);
 AiEsp32RotaryEncoder enc2(ENC2_A, ENC2_B, ENC2_BTN, -1, ENCODER_STEPS);
 AiEsp32RotaryEncoder enc3(ENC3_A, ENC3_B, ENC3_BTN, -1, ENCODER_STEPS);
 AiEsp32RotaryEncoder enc4(ENC4_A, ENC4_B, ENC4_BTN, -1, ENCODER_STEPS);
-AiEsp32RotaryEncoder enc5(ENC5_B, ENC5_A, ENC5_BTN, -1, ENCODER_STEPS);
 
 long encVal[5] = {0};
-
-// ================= RTC =================
-RTC_DS3231 rtc;
-int lastMinute = -1;
 
 // ================= FUNCTION PROTOTYPES =================
 void updateOLED();
@@ -170,13 +159,12 @@ void IRAM_ATTR readEncoder0() { enc1.readEncoder_ISR(); }
 void IRAM_ATTR readEncoder1() { enc2.readEncoder_ISR(); }
 void IRAM_ATTR readEncoder2() { enc3.readEncoder_ISR(); }
 void IRAM_ATTR readEncoder3() { enc4.readEncoder_ISR(); }
-void IRAM_ATTR readEncoder4() { enc5.readEncoder_ISR(); }
 
-void updateOLED(char* buf) {
+
+void updateOLED(char* timebuf) {
   display.clearDisplay();
   display.setTextSize(1); display.setTextColor(SSD1306_WHITE); display.setFont(&FreeSans18pt7b);
-  display.setCursor(16, display.height()/2+14); display.print(buf);
-  // RTC
+  display.setCursor(16, display.height()/2+14); display.print(timebuf);
   display.setCursor(SCREEN_WIDTH-6*6, SCREEN_HEIGHT-8);
   display.display();
   display.setFont();
@@ -192,7 +180,6 @@ void debugPrint(const String &msg){
 
 // --- Setup ---
 void setup() {
-
     Serial.begin(115200);
     Serial.println("Iniciant ESP32...");
 
@@ -273,28 +260,18 @@ void setup() {
     enc2.begin(); enc2.setup(readEncoder1); enc2.setAcceleration(0);
     enc3.begin(); enc3.setup(readEncoder2); enc3.setAcceleration(0);
     enc4.begin(); enc4.setup(readEncoder3); enc4.setAcceleration(0);
-    enc5.begin(); enc5.setup(readEncoder4); enc5.setAcceleration(0);
 
     // Botons extra
     pinMode(BUTTON1, INPUT_PULLUP);
     pinMode(BUTTON2, INPUT_PULLUP);
     pinMode(BUTTON3, INPUT_PULLUP);
     pinMode(BUTTON4, INPUT_PULLUP);
-    pinMode(BUTTON5, INPUT_PULLUP);
 
     pinMode(ENC1_BTN, INPUT_PULLUP);
     pinMode(ENC2_BTN, INPUT_PULLUP);
     pinMode(ENC3_BTN, INPUT_PULLUP);
     pinMode(ENC4_BTN, INPUT_PULLUP);
-    pinMode(ENC5_BTN, INPUT_PULLUP);
 
-    // RTC
-    if(!rtc.begin()) debugPrint("No s'ha trobat el RTC!");
-    ntpInit(
-        "pool.ntp.org",
-        3600,   // GMT+1
-        3600    // Horari d'estiu
-    );
 
 }
 
@@ -302,12 +279,7 @@ void setup() {
 void loop() {
     ensureWiFi();
 
-    // --- RTC ---
-    DateTime now = rtc.now();
-    char buf[9]; snprintf(buf,sizeof(buf),"%02d:%02d", now.hour(), now.minute());
-    if (now.minute() != lastMinute) {
-        lastMinute = now.minute();
-    }
+    struct tm timeinfo;
 
     // --- Encoders ---
     bool encoderMoved = false;
@@ -333,19 +305,15 @@ void loop() {
 
     if (enc3.encoderChanged()) { encVal[2] = enc3.readEncoder(); encoderMoved = true; }
     if (enc4.encoderChanged()) { encVal[3] = enc4.readEncoder(); encoderMoved = true; }
-    if (enc5.encoderChanged()) { encVal[4] = enc5.readEncoder(); encoderMoved = true; }
 
     // --- Botons ---
     buttonState1 = digitalRead(BUTTON1);
     buttonState2 = digitalRead(BUTTON2);
     buttonState3 = digitalRead(BUTTON3);
     buttonState4 = digitalRead(BUTTON4);
-    buttonState5 = digitalRead(BUTTON5);
     buttonState6 = digitalRead(ENC1_BTN);
     buttonState7 = digitalRead(ENC2_BTN);
     buttonState8 = digitalRead(ENC3_BTN);
-    buttonState9 = digitalRead(ENC4_BTN);
-    buttonState10 = digitalRead(ENC5_BTN);
 
 
     // Detectar canvi (només quan es prem)
@@ -376,12 +344,6 @@ void loop() {
     if (lastButtonState8 == HIGH && buttonState8 == LOW) {
         
     }
-    if (lastButtonState9 == HIGH && buttonState9 == LOW) {
-        
-    }
-    if (lastButtonState10 == HIGH && buttonState10 == LOW) {
-        
-    }
 
     // Guardar estat anterior
     lastButtonState1 = buttonState1;
@@ -392,8 +354,5 @@ void loop() {
     lastButtonState6 = buttonState6;
     lastButtonState7 = buttonState7;
     lastButtonState8 = buttonState8;
-    lastButtonState9 = buttonState9;
-    lastButtonState10 = buttonState10;
 
-    updateOLED(buf);
 }

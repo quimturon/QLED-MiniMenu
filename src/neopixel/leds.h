@@ -26,5 +26,14 @@ void setupLEDs();
 void LEDTask(void *pvParameters);
 void enviaBrillantor(int stripIndex = 0);
 void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len);
+// Funcions de control de LEDs
+void toggleTauleta();
+void togglePrestatge();
+void briPlusTauleta();
+void briMinusTauleta();
+void briPlusPrestatge();
+void briMinusPrestatge();
+void presetTauleta();
+void presetPrestatge();
 
 #endif
