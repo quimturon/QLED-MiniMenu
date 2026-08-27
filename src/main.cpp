@@ -174,12 +174,10 @@ void IRAM_ATTR readEncoder3() { enc4.readEncoder_ISR(); }
 
 void updateOLED(String buf="") {
     display.clearDisplay();
-    display.setTextSize(1);
-    display.setCursor(0, 2);
+    display.setTextSize(2);
+    display.setCursor(34, 8);
     display.setFont();
-    display.println(debugMsg);
-    display.println(debugMsg2);
-    display.println(WiFi.macAddress());
+    display.println(receivedTime);
     display.display();
 }
 
@@ -411,6 +409,11 @@ void loop() {
         } else if (!otaTriggered && millis() - allButtonsPressedAt >= 3000UL) {
             otaTriggered = true;
             String newVersion;
+            display.clearDisplay();
+            display.setTextSize(1);
+            display.setCursor(0, 0);
+            display.println("Comprovant actualitzacio...");
+            display.display();
             Serial.println("Els quatre botons estan premuts 3 segons: comprovant OTA...");
             if (checkForUpdate(newVersion)) {
                 performOTA(newVersion);

@@ -19,15 +19,18 @@ extern uint8_t targetBri3;
 extern uint8_t briSteps;
 extern uint8_t controladorAdress[];
 
+char receivedTime[6] = "--:--";
+
 uint8_t remotePreset0 = 2;
 uint8_t remotePreset1 = 2;
 
 void sendLedState() {
     char state[80];
-    snprintf(state, sizeof(state), "STATE,%u,%u,%u,%u,%u,%u,%u,%u",
+    snprintf(state, sizeof(state), "STATE,%u,%u,%u,%u,%u,%u,%u,%u,%s",
              bri0, remotePreset0, bri1, remotePreset1,
              ledStrips[0].targetBrightness, ledStrips[0].preset,
-             ledStrips[1].targetBrightness, ledStrips[1].preset);
+             ledStrips[1].targetBrightness, ledStrips[1].preset,
+             receivedTime);
     esp_now_send(controladorAdress, (const uint8_t *)state, strlen(state) + 1);
 }
 // ===============================
@@ -48,13 +51,18 @@ void onDataRecv(const uint8_t *mac,
 
     if (msg.startsWith("STATE,")) {
         int values[8];
-        if (sscanf(msg.c_str(), "STATE,%d,%d,%d,%d,%d,%d,%d,%d",
+        char receivedClock[6] = "--:--";
+        if (sscanf(msg.c_str(), "STATE,%d,%d,%d,%d,%d,%d,%d,%d,%5[0-9:]",
                    &values[0], &values[1], &values[2], &values[3],
-                   &values[4], &values[5], &values[6], &values[7]) == 8) {
+                   &values[4], &values[5], &values[6], &values[7],
+                   receivedClock) >= 8) {
             bri0 = constrain(values[0], 0, 255);
             remotePreset0 = constrain(values[1], 1, 4);
             bri1 = constrain(values[2], 0, 255);
             remotePreset1 = constrain(values[3], 1, 4);
+            if (strlen(receivedClock) == 5) {
+                strcpy(receivedTime, receivedClock);
+            }
         }
         return;
     }
