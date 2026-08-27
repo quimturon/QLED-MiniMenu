@@ -13,7 +13,7 @@
 #define VERSION_ADDR 128
 
 static const char* releasesAPI =
-    "https://api.github.com/repos/quimturon/habitacio/releases/latest";
+    "https://api.github.com/repos/quimturon/QLED-MiniMenu/releases/latest";
 
 // === Globals definits al main.cpp ===
 extern Adafruit_SSD1306 display;
@@ -98,7 +98,7 @@ void performOTA(const String &newVersion) {
 
     HTTPClient http;
     http.begin(client,
-      "https://github.com/quimturon/habitacio/releases/latest/download/firmware.bin");
+            "https://github.com/quimturon/QLED-MiniMenu/releases/latest/download/firmware.bin");
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
 
     if (http.GET() != HTTP_CODE_OK) {

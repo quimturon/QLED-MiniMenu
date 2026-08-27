@@ -4,6 +4,7 @@
 #include <Wire.h>
 #include <SPI.h>
 //llibreries de wifi i dades
+#include "esp_wifi.h"
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
@@ -33,11 +34,14 @@
 #include "neopixel/leds.h"
 #include "ntp/ntp.h"
 #include "espnow/espnow.h"
+#include "buzzer/buzzer.h"
 
 // ================= MENU SETTING =================
 DateTime lastUpdateOTA;
 
 // --- OLED --- 
+String debugMsg = "";
+String debugMsg2 = "";
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
 #define OLED_RESET -1
@@ -57,8 +61,8 @@ String FW_VERSION;
 String NEW_VERSION;
 bool otaInProgress = false;
 int needOTA = 0;
-const char* releasesAPI  = "https://api.github.com/repos/quimturon/habitacio/releases/latest";
-const char* firmwareURL = "https://github.com/quimturon/habitacio/releases/latest/download/firmware.bin";
+const char* releasesAPI  = "https://api.github.com/repos/quimturon/QLED-MiniMenu/releases/latest";
+const char* firmwareURL = "https://github.com/quimturon/QLED-MiniMenu/releases/latest/download/firmware.bin";
 
 // --- EEPROM ---
 #define EEPROM_SIZE 160
@@ -67,15 +71,22 @@ const char* firmwareURL = "https://github.com/quimturon/habitacio/releases/lates
 #define VERSION_ADDR 128  // Offset firmware
 
 // --- espNOW ---
-uint8_t controladorAdress[] = {0x80, 0xF3, 0xDA, 0x65, 0x5C, 0xB8};
+uint8_t controladorAdress[] = {0x30, 0x76, 0xF5, 0xA5, 0x9B, 0x84};
 
 // --- ledStrips ---
 uint8_t bri0;
 uint8_t bri1;
+uint8_t bri2;
+uint8_t bri3;
 uint8_t targetBri0;
 uint8_t targetBri1;
+uint8_t targetBri2;
+
+uint8_t targetBri3;
 uint8_t lastBri0;
 uint8_t lastBri1;
+uint8_t lastBri2;
+uint8_t lastBri3;
 int minBri = 5;
 int maxBri = 255;
 uint8_t briSteps = 50;
@@ -109,17 +120,18 @@ String callPreset(int stripIndex, int presetIndex) {
 
 #define ENC3_A 16
 #define ENC3_B 17
+
 #define ENC4_A 25
 #define ENC4_B 26
 
 #define ENCODER_STEPS 4
 
-#define BUTTON1 33
-#define BUTTON2 32
+#define BUTTON1 32
+#define BUTTON2 33
 #define BUTTON3 13
 #define BUTTON4 12
-#define ENC1_BTN 14
-#define ENC2_BTN 15
+#define ENC1_BTN 15
+#define ENC2_BTN 14
 #define ENC3_BTN 2
 #define ENC4_BTN 5
 
@@ -142,6 +154,8 @@ bool lastButtonState6 = HIGH;
 bool lastButtonState7 = HIGH;
 bool lastButtonState8 = HIGH;
 
+#define BUZZER_PIN 23
+
 // ================= ROTARY ENCODERS =================
 AiEsp32RotaryEncoder enc1(ENC1_A, ENC1_B, ENC1_BTN, -1, ENCODER_STEPS);
 AiEsp32RotaryEncoder enc2(ENC2_A, ENC2_B, ENC2_BTN, -1, ENCODER_STEPS);
@@ -150,9 +164,6 @@ AiEsp32RotaryEncoder enc4(ENC4_A, ENC4_B, ENC4_BTN, -1, ENCODER_STEPS);
 
 long encVal[5] = {0};
 
-// ================= FUNCTION PROTOTYPES =================
-void updateOLED();
-void debugPrint(const String &msg);
 
 // ================= ISR =================
 void IRAM_ATTR readEncoder0() { enc1.readEncoder_ISR(); }
@@ -161,13 +172,15 @@ void IRAM_ATTR readEncoder2() { enc3.readEncoder_ISR(); }
 void IRAM_ATTR readEncoder3() { enc4.readEncoder_ISR(); }
 
 
-void updateOLED(char* timebuf) {
-  display.clearDisplay();
-  display.setTextSize(1); display.setTextColor(SSD1306_WHITE); display.setFont(&FreeSans18pt7b);
-  display.setCursor(16, display.height()/2+14); display.print(timebuf);
-  display.setCursor(SCREEN_WIDTH-6*6, SCREEN_HEIGHT-8);
-  display.display();
-  display.setFont();
+void updateOLED(String buf="") {
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setCursor(0, 2);
+    display.setFont();
+    display.println(debugMsg);
+    display.println(debugMsg2);
+    display.println(WiFi.macAddress());
+    display.display();
 }
 
 void debugPrint(const String &msg){
@@ -180,6 +193,7 @@ void debugPrint(const String &msg){
 
 // --- Setup ---
 void setup() {
+    
     Serial.begin(115200);
     Serial.println("Iniciant ESP32...");
 
@@ -187,7 +201,11 @@ void setup() {
     Serial.print("Versió llegida EEPROM: "); 
     Serial.println(FW_VERSION);
 
-    display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+    // OLED
+    if(display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+        display.clearDisplay(); display.display();
+    }
+    Serial.println("Pantalles inicialitzades");
     display.clearDisplay();
     display.setTextColor(SSD1306_WHITE);
     display.setCursor(0,0);
@@ -197,14 +215,41 @@ void setup() {
     display.print("V");
     display.println(FW_VERSION);
     display.display();
-    if (!setup_wifi()) {
-      display.clearDisplay();
-      display.setCursor(0,0);
-      display.println("ERROR WIFI");
-      display.display();
-      delay(5000);
-      ESP.restart();  // o deixa'l offline si prefereixes
+    setupBuzzer();
+    startupBeep();
+
+    WiFi.mode(WIFI_STA);
+    if (esp_now_init() != ESP_OK) {
+        Serial.println("❌ Error inicialitzant ESP-NOW");
+        display.println("ESP-NOW ERROR");
+        display.display();
+        while (true) delay(100);
     }
+    esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE); // 1 = canal que vols per ESP-NOW
+    esp_now_peer_info_t peerInfo = {};
+    memcpy(peerInfo.peer_addr, controladorAdress, 6);
+    peerInfo.channel = 1;
+    peerInfo.encrypt = false;
+
+        // --- BUZZER ---
+    pinMode(BUZZER_PIN, OUTPUT);
+
+    // Beep inici
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(80);
+    digitalWrite(BUZZER_PIN, LOW);
+
+    esp_now_del_peer(controladorAdress);  // elimina si existeix
+    if (esp_now_add_peer(&peerInfo) != ESP_OK) {
+        Serial.println("❌ Error afegint peer");
+
+    } else {
+        Serial.println("✅ Peer afegit correctament");
+    }
+    esp_now_register_recv_cb(onDataRecv);
+    Serial.println("✅ ESP-NOW inicialitzat");
+    Serial.print("Canal: ");
+    Serial.println(WiFi.channel());
 
     display.clearDisplay();
     display.setTextSize(1);
@@ -233,52 +278,53 @@ void setup() {
         NULL,
         0
     );
+    Serial.println("Tasca LED creada");
 
-    esp_now_peer_info_t peerInfo = {};
-    memcpy(peerInfo.peer_addr, controladorAdress, 6);
-    peerInfo.channel = 0;
-    peerInfo.encrypt = false;
-
-    if (!esp_now_is_peer_exist(controladorAdress)) {
-    if (esp_now_add_peer(&peerInfo) != ESP_OK) {
-        Serial.println("❌ Error afegint el peer");
-        return;
-    }
-  }
-
-    // OLED
-    if(display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-        display.clearDisplay(); display.display();
-    }
-
-    // Configura pins A/B dels encoders 3 i 4
-    pinMode(ENC3_A, INPUT_PULLUP); pinMode(ENC3_B, INPUT_PULLUP);
-    pinMode(ENC4_A, INPUT_PULLUP); pinMode(ENC4_B, INPUT_PULLUP);
-
-    // Encoders
-    enc1.begin(); enc1.setup(readEncoder0); enc1.setAcceleration(0);
-    enc2.begin(); enc2.setup(readEncoder1); enc2.setAcceleration(0);
-    enc3.begin(); enc3.setup(readEncoder2); enc3.setAcceleration(0);
-    enc4.begin(); enc4.setup(readEncoder3); enc4.setAcceleration(0);
-
+    
+    
     // Botons extra
     pinMode(BUTTON1, INPUT_PULLUP);
     pinMode(BUTTON2, INPUT_PULLUP);
     pinMode(BUTTON3, INPUT_PULLUP);
     pinMode(BUTTON4, INPUT_PULLUP);
-
+    
     pinMode(ENC1_BTN, INPUT_PULLUP);
     pinMode(ENC2_BTN, INPUT_PULLUP);
     pinMode(ENC3_BTN, INPUT_PULLUP);
     pinMode(ENC4_BTN, INPUT_PULLUP);
+    
+    // Encoders
+    pinMode(ENC1_A, INPUT);
+    pinMode(ENC1_B, INPUT);
 
+    pinMode(ENC2_A, INPUT);
+    pinMode(ENC2_B, INPUT);
 
+    pinMode(ENC3_A, INPUT_PULLUP);
+    pinMode(ENC3_B, INPUT_PULLUP);
+
+    pinMode(ENC4_A, INPUT_PULLUP);
+    pinMode(ENC4_B, INPUT_PULLUP);
+
+    enc1.begin();
+    enc1.setup(readEncoder0);
+    enc1.setAcceleration(0);
+
+    enc2.begin();
+    enc2.setup(readEncoder1);
+    enc2.setAcceleration(0);
+
+    enc3.begin();
+    enc3.setup(readEncoder2);
+    enc3.setAcceleration(0);
+
+    enc4.begin();
+    enc4.setup(readEncoder3);
+    enc4.setAcceleration(0);
 }
 
 // --- Loop ---
 void loop() {
-    ensureWiFi();
-
     struct tm timeinfo;
 
     // --- Encoders ---
@@ -287,8 +333,16 @@ void loop() {
     if(enc1.encoderChanged()) { // controla la tira 1
         encVal[0] = enc1.readEncoder();
         int delta = enc1.readEncoder();
-        if(delta>0) ledStrips[0].targetBrightness = min(ledStrips[0].targetBrightness+briSteps,maxBri);
-        else if(delta<0) ledStrips[0].targetBrightness = max(ledStrips[0].targetBrightness-briSteps,minBri);
+        if(delta<0){
+            debugMsg = "Enviant +briPrestatge...";
+            esp_now_send(controladorAdress, (uint8_t*)"+briPrestatge", strlen("+briPrestatge")+1);
+            Serial.println("Enviat +briPrestatge");
+        }
+        else if(delta>0) {
+            debugMsg = "Enviant -briPrestatge...";
+            esp_now_send(controladorAdress, (uint8_t*)"-briPrestatge", strlen("-briPrestatge")+1);
+            Serial.println("Enviat -briPrestatge");
+        }
         enviaBrillantor(0);
         enc1.reset();
     }
@@ -296,53 +350,117 @@ void loop() {
     if(enc2.encoderChanged()) { // controla la tira 1
         encVal[1] = enc2.readEncoder();
         int delta = enc2.readEncoder();
-        if(delta>0) ledStrips[1].targetBrightness = min(ledStrips[1].targetBrightness+briSteps,maxBri);
-        else if(delta<0) ledStrips[1].targetBrightness = max(ledStrips[1].targetBrightness-briSteps,minBri);
+        if(delta<0){
+            debugMsg = "Enviant -briPrestatge...";
+            esp_now_send(controladorAdress, (uint8_t*)"-briDespatx", strlen("-briDespatx")+1);
+            Serial.println("Enviat -briDespatx");
+        }
+        else if(delta>0) {
+            debugMsg = "Enviant +briDespatx...";
+            esp_now_send(controladorAdress, (uint8_t*)"+briDespatx", strlen("+briDespatx")+1);
+            Serial.println("Enviat +briDespatx");
+        }
         enviaBrillantor(1);
         enc2.reset();
     }
 
 
-    if (enc3.encoderChanged()) { encVal[2] = enc3.readEncoder(); encoderMoved = true; }
-    if (enc4.encoderChanged()) { encVal[3] = enc4.readEncoder(); encoderMoved = true; }
+    if (enc3.encoderChanged()) { 
+        encVal[2] = enc3.readEncoder();
+        int delta = enc3.readEncoder();
+        if(delta<0){
+            briPlusTauleta();
+        }
+        else if(delta>0) {
+            briMinusTauleta();
+        }
+        enc3.reset();
+        sendLedState();
+    }
+    if (enc4.encoderChanged()) { 
+        encVal[3] = enc4.readEncoder();
+        int delta = enc4.readEncoder();
+        if(delta<0){
+            briPlusPrestatge();
+        }
+        else if(delta>0) {
+            briMinusPrestatge();
+        }
+        enc4.reset();
+        sendLedState();
+    }
 
     // --- Botons ---
     buttonState1 = digitalRead(BUTTON1);
     buttonState2 = digitalRead(BUTTON2);
     buttonState3 = digitalRead(BUTTON3);
     buttonState4 = digitalRead(BUTTON4);
-    buttonState6 = digitalRead(ENC1_BTN);
-    buttonState7 = digitalRead(ENC2_BTN);
-    buttonState8 = digitalRead(ENC3_BTN);
+    buttonState5 = digitalRead(ENC1_BTN);
+    buttonState6 = digitalRead(ENC2_BTN);
+    buttonState7 = digitalRead(ENC3_BTN);
+    buttonState8 = digitalRead(ENC4_BTN);
 
+    static unsigned long allButtonsPressedAt = 0;
+    static bool otaTriggered = false;
+    bool allButtonsPressed = buttonState1 == LOW && buttonState2 == LOW &&
+                              buttonState3 == LOW && buttonState4 == LOW;
+
+    if (allButtonsPressed) {
+        if (allButtonsPressedAt == 0) {
+            allButtonsPressedAt = millis();
+        } else if (!otaTriggered && millis() - allButtonsPressedAt >= 3000UL) {
+            otaTriggered = true;
+            String newVersion;
+            Serial.println("Els quatre botons estan premuts 3 segons: comprovant OTA...");
+            if (checkForUpdate(newVersion)) {
+                performOTA(newVersion);
+            } else {
+                Serial.println("No hi ha cap actualitzacio OTA disponible.");
+            }
+        }
+    } else {
+        allButtonsPressedAt = 0;
+        otaTriggered = false;
+    }
 
     // Detectar canvi (només quan es prem)
     // Menu 1 = Firmware Update
     // Menu 2 = lights
     // Menu 3 = rtc
     if (lastButtonState1 == HIGH && buttonState1 == LOW) {
-        
+        debugMsg = "Enviant togglePrestatge...";
+        esp_now_send(controladorAdress, (uint8_t*)"togglePrestatge", strlen("togglePrestatge")+1);
+        Serial.println("Enviat togglePrestatge");
     }
     if (lastButtonState2 == HIGH && buttonState2 == LOW) {
-        
+        debugMsg = "Enviant toggleDespatx...";
+        esp_now_send(controladorAdress, (uint8_t*)"toggleDespatx", strlen("toggleDespatx")+1);
+        Serial.println("Enviat toggleDespatx");
     }
     if (lastButtonState3 == HIGH && buttonState3 == LOW) {
-        
+        Serial.print("Canal: ");
+        Serial.println(WiFi.channel());
     }
     if (lastButtonState4 == HIGH && buttonState4 == LOW) {
         
     }
     if (lastButtonState5 == HIGH && buttonState5 == LOW) {
-        
+        debugMsg = "Enviant presetPrestatge...";
+        esp_now_send(controladorAdress, (uint8_t*)"presetPrestatge", strlen("presetPrestatge")+1);
+        Serial.println("Enviat presetPrestatge");
     }
     if (lastButtonState6 == HIGH && buttonState6 == LOW) {
-        
+        debugMsg = "Enviant presetDespatx...";
+        esp_now_send(controladorAdress, (uint8_t*)"presetDespatx", strlen("presetDespatx")+1);
+        Serial.println("Enviat presetDespatx");
     }
     if (lastButtonState7 == HIGH && buttonState7 == LOW) {
-        
+        presetTauleta();
+        sendLedState();
     }
     if (lastButtonState8 == HIGH && buttonState8 == LOW) {
-        
+        presetPrestatge();
+        sendLedState();
     }
 
     // Guardar estat anterior
@@ -355,4 +473,5 @@ void loop() {
     lastButtonState7 = buttonState7;
     lastButtonState8 = buttonState8;
 
+    updateOLED();
 }

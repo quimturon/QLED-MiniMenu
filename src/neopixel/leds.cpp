@@ -18,7 +18,7 @@ extern uint8_t briSteps;
 
 LEDStrip ledStrips[NUM_STRIPS] = {
     {Adafruit_NeoPixel(NUM_LEDS, 19, NEO_GRBW + NEO_KHZ800), 255, 255, 1},
-    {Adafruit_NeoPixel(100, 18, NEO_GRB + NEO_KHZ800), 255, 255, 1}
+    {Adafruit_NeoPixel(NUM_LEDS, 19, NEO_GRBW + NEO_KHZ800), 255, 255, 1}
 };
 
 void setupLEDs() {
@@ -31,12 +31,6 @@ void setupLEDs() {
         ledStrips[i].preset = 2;
     }
 
-    if (esp_now_init() != ESP_OK) {
-        Serial.println("❌ Error inicialitzant ESP-NOW");
-        return;
-    }
-
-    esp_now_register_recv_cb(onDataRecv);
 }
 
 void LEDTask(void *pvParameters) {
@@ -80,42 +74,25 @@ void LEDTask(void *pvParameters) {
 
 // Funcions enviaBrillantor i onDataRecv: pots actualitzar-les per enviar/recebre info de totes les tiras
 void enviaBrillantor(int stripIndex) {
-    uint8_t controladorAdress[] = {0x80, 0xF3, 0xDA, 0x65, 0x5C, 0xB8};
-
     if(stripIndex < 0 || stripIndex >= NUM_STRIPS) return;
-
-    char msg[20];
-    sprintf(msg, "bri%d:%d", stripIndex, ledStrips[stripIndex].targetBrightness);
-    esp_now_send(controladorAdress, (uint8_t *)msg, strlen(msg)+1);
-
-    Serial.printf("Brillantor enviada tira %d: %d\n", stripIndex, ledStrips[stripIndex].targetBrightness);
+    sendLedState();
 }
 
 void toggleTauleta() {
     if(ledStrips[0].targetBrightness == 0) {
-            for(int s=0; s<NUM_STRIPS; s++) {
-                ledStrips[0].targetBrightness = lastBri0;
-            }
-        } else {
-            // Si alguna està encesa, apaguem-les totes
-            for(int s=0; s<NUM_STRIPS; s++) {
-                lastBri0 = ledStrips[0].targetBrightness;
-                ledStrips[0].targetBrightness = 0;
-            }
-        }
+        ledStrips[0].targetBrightness = lastBri0;
+    } else {
+        lastBri0 = ledStrips[0].targetBrightness;
+        ledStrips[0].targetBrightness = 0;
+    }
 }
 void togglePrestatge() {
     if(ledStrips[1].targetBrightness == 0) {
-            for(int s=0; s<NUM_STRIPS; s++) {
-                ledStrips[1].targetBrightness = lastBri1;
-            }
-        } else {
-            // Si alguna està encesa, apaguem-les totes
-            for(int s=0; s<NUM_STRIPS; s++) {
-                lastBri1 = ledStrips[1].targetBrightness;
-                ledStrips[1].targetBrightness = 0;
-            }
-        }
+        ledStrips[1].targetBrightness = lastBri1;
+    } else {
+        lastBri1 = ledStrips[1].targetBrightness;
+        ledStrips[1].targetBrightness = 0;
+    }
 }
 void briPlusTauleta() {
     ledStrips[0].targetBrightness = min(ledStrips[0].targetBrightness + briSteps, maxBri);
