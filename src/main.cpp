@@ -224,10 +224,9 @@ void setup() {
         display.display();
         while (true) delay(100);
     }
-    esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE); // 1 = canal que vols per ESP-NOW
     esp_now_peer_info_t peerInfo = {};
     memcpy(peerInfo.peer_addr, controladorAdress, 6);
-    peerInfo.channel = 1;
+    peerInfo.channel = 0;
     peerInfo.encrypt = false;
 
         // --- BUZZER ---
