@@ -2,24 +2,23 @@
 
 // ================= SETUP =================
 void setupBuzzer() {
-    pinMode(BUZZER_PIN, OUTPUT);
-    digitalWrite(BUZZER_PIN, LOW);
+    ledcAttach(BUZZER_PIN, 1000, 8);
+    stopBuzzerTone();
+}
+
+void startBuzzerTone(int freq) {
+    ledcWriteTone(BUZZER_PIN, freq);
+}
+
+void stopBuzzerTone() {
+    ledcWriteTone(BUZZER_PIN, 0);
 }
 
 // ================= BEEP =================
 void beep(int freq, int duration) {
-
-    int halfPeriod = 1000000 / freq / 2;
-    int cycles = (freq * duration) / 1000;
-
-    for (int i = 0; i < cycles; i++) {
-
-        digitalWrite(BUZZER_PIN, HIGH);
-        delayMicroseconds(halfPeriod);
-
-        digitalWrite(BUZZER_PIN, LOW);
-        delayMicroseconds(halfPeriod);
-    }
+    startBuzzerTone(freq);
+    delay(duration);
+    stopBuzzerTone();
 }
 
 // ================= STARTUP SOUND =================

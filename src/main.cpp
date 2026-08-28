@@ -199,7 +199,7 @@ void startAlarm() {
     alarmRinging = true;
     lastAlarmBeep = 0;
     buzzerState = false;
-    digitalWrite(BUZZER_PIN, LOW);
+    startBuzzerTone(1000);
     targetBri0 = 255;
     targetBri1 = 255;
 }
@@ -207,20 +207,17 @@ void startAlarm() {
 void stopAlarm() {
     alarmRinging = false;
     buzzerState = false;
-    digitalWrite(BUZZER_PIN, LOW);
+    stopBuzzerTone();
     targetBri0 = alarmSavedBri0;
     targetBri1 = alarmSavedBri1;
     sendMessage(controladorAdress, "ALARM_OFF");
 }
 
 void updateAlarmBuzzer() {
-    if (!alarmRinging || millis() - lastAlarmBeep < 250) {
-        return;
+    if (alarmRinging && !buzzerState) {
+        buzzerState = true;
+        startBuzzerTone(1000);
     }
-
-    lastAlarmBeep = millis();
-    buzzerState = !buzzerState;
-    digitalWrite(BUZZER_PIN, buzzerState ? HIGH : LOW);
 }
 
 // --- Setup ---

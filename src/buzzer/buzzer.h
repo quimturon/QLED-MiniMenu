@@ -10,5 +10,7 @@
 void setupBuzzer();
 void beep(int freq, int duration);
 void startupBeep();
+void startBuzzerTone(int freq);
+void stopBuzzerTone();
 
 #endif
