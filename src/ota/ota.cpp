@@ -13,7 +13,7 @@
 #define VERSION_ADDR 128
 
 static const char* versionURL =
-    "https://raw.githubusercontent.com/quimturon/QLED-MiniMenu/main/version.txt";
+    "https://github.com/quimturon/QLED-MiniMenu/releases/latest/download/version.txt";
 
 // === Globals definits al main.cpp ===
 extern Adafruit_SSD1306 display;
@@ -83,11 +83,11 @@ bool checkForUpdate(String &newVersion) {
     client.setInsecure();
 
     IPAddress serverIP;
-    if (WiFi.hostByName("raw.githubusercontent.com", serverIP) != 1) {
-        Serial.println("OTA: no es resol raw.githubusercontent.com (DNS)");
+    if (WiFi.hostByName("github.com", serverIP) != 1) {
+        Serial.println("OTA: no es resol github.com (DNS)");
         return false;
     }
-    Serial.print("OTA: raw.githubusercontent.com = ");
+    Serial.print("OTA: github.com = ");
     Serial.println(serverIP);
 
     client.setTimeout(10000);
@@ -101,6 +101,7 @@ bool checkForUpdate(String &newVersion) {
 
         http.addHeader("User-Agent", "ESP32");
         http.useHTTP10(true);
+        http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
         http.setTimeout(10000);
         int httpCode = http.GET();
         if (httpCode == HTTP_CODE_OK) {
