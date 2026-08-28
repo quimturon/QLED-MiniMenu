@@ -46,8 +46,23 @@ static bool isVersionNewer(const String& current, const String& latest) {
     int majorC=0, minorC=0, patchC=0;
     int majorL=0, minorL=0, patchL=0;
 
-    sscanf(current.c_str(), "%d.%d.%d", &majorC, &minorC, &patchC);
-    sscanf(latest.c_str(), "%d.%d.%d", &majorL, &minorL, &patchL);
+    String currentVersion = current;
+    String latestVersion = latest;
+    currentVersion.trim();
+    latestVersion.trim();
+    if (currentVersion.startsWith("v") || currentVersion.startsWith("V")) {
+        currentVersion.remove(0, 1);
+    }
+    if (latestVersion.startsWith("v") || latestVersion.startsWith("V")) {
+        latestVersion.remove(0, 1);
+    }
+
+    if (sscanf(currentVersion.c_str(), "%d.%d.%d", &majorC, &minorC, &patchC) != 3 ||
+        sscanf(latestVersion.c_str(), "%d.%d.%d", &majorL, &minorL, &patchL) != 3) {
+        Serial.printf("OTA: versio invalida, actual='%s', remota='%s'\n",
+                      current.c_str(), latest.c_str());
+        return false;
+    }
 
     if (majorL > majorC) return true;
     if (majorL < majorC) return false;
@@ -59,7 +74,10 @@ static bool isVersionNewer(const String& current, const String& latest) {
 
 // ================= CHECK UPDATE =================
 bool checkForUpdate(String &newVersion) {
-    if (WiFi.status() != WL_CONNECTED) return false;
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("OTA: WiFi no connectat");
+        return false;
+    }
 
     WiFiClientSecure client;
     client.setInsecure();
@@ -68,17 +86,32 @@ bool checkForUpdate(String &newVersion) {
     http.begin(client, releasesAPI);
     http.addHeader("User-Agent", "ESP32");
 
-    if (http.GET() != HTTP_CODE_OK) {
+    http.setTimeout(10000);
+    int httpCode = http.GET();
+    if (httpCode != HTTP_CODE_OK) {
+        Serial.printf("OTA: error API HTTP %d\n", httpCode);
         http.end();
         return false;
     }
 
     DynamicJsonDocument doc(2048);
-    deserializeJson(doc, http.getString());
+    String response = http.getString();
+    DeserializationError error = deserializeJson(doc, response);
     http.end();
 
+    if (error) {
+        Serial.printf("OTA: error JSON: %s\n", error.c_str());
+        return false;
+    }
+
     newVersion = doc["tag_name"].as<String>();
-    newVersion.replace("v", "");
+    newVersion.trim();
+    if (newVersion.startsWith("v") || newVersion.startsWith("V")) {
+        newVersion.remove(0, 1);
+    }
+
+    Serial.printf("OTA: versio actual='%s', versio remota='%s'\n",
+                  FW_VERSION.c_str(), newVersion.c_str());
 
     return isVersionNewer(FW_VERSION, newVersion);
 }

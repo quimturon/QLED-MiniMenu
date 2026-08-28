@@ -216,6 +216,7 @@ void setup() {
     setupBuzzer();
     startupBeep();
 
+    setup_wifi();
     WiFi.mode(WIFI_STA);
     if (esp_now_init() != ESP_OK) {
         Serial.println("❌ Error inicialitzant ESP-NOW");
@@ -324,6 +325,8 @@ void setup() {
 // --- Loop ---
 void loop() {
     struct tm timeinfo;
+
+    ensureWiFi();
 
     // --- Encoders ---
     bool encoderMoved = false;
