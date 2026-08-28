@@ -12,8 +12,8 @@
 #define EEPROM_SIZE 160
 #define VERSION_ADDR 128
 
-static const char* releasesAPI =
-    "https://api.github.com/repos/quimturon/QLED-MiniMenu/releases/latest";
+static const char* versionURL =
+    "https://raw.githubusercontent.com/quimturon/QLED-MiniMenu/main/version.txt";
 
 // === Globals definits al main.cpp ===
 extern Adafruit_SSD1306 display;
@@ -82,29 +82,42 @@ bool checkForUpdate(String &newVersion) {
     WiFiClientSecure client;
     client.setInsecure();
 
-    HTTPClient http;
-    http.begin(client, releasesAPI);
-    http.addHeader("User-Agent", "ESP32");
+    IPAddress serverIP;
+    if (WiFi.hostByName("raw.githubusercontent.com", serverIP) != 1) {
+        Serial.println("OTA: no es resol raw.githubusercontent.com (DNS)");
+        return false;
+    }
+    Serial.print("OTA: raw.githubusercontent.com = ");
+    Serial.println(serverIP);
 
-    http.setTimeout(10000);
-    int httpCode = http.GET();
-    if (httpCode != HTTP_CODE_OK) {
-        Serial.printf("OTA: error API HTTP %d\n", httpCode);
+    client.setTimeout(10000);
+
+    for (int attempt = 1; attempt <= 2; attempt++) {
+        HTTPClient http;
+        if (!http.begin(client, versionURL)) {
+            Serial.printf("OTA: no es pot obrir la connexio (intent %d)\n", attempt);
+            continue;
+        }
+
+        http.addHeader("User-Agent", "ESP32");
+        http.useHTTP10(true);
+        http.setTimeout(10000);
+        int httpCode = http.GET();
+        if (httpCode == HTTP_CODE_OK) {
+            newVersion = http.getString();
+            http.end();
+            break;
+        }
+
+        Serial.printf("OTA: error versio HTTP %d (intent %d)\n", httpCode, attempt);
         http.end();
+        newVersion = "";
+    }
+
+    if (newVersion.isEmpty()) {
         return false;
     }
 
-    DynamicJsonDocument doc(2048);
-    String response = http.getString();
-    DeserializationError error = deserializeJson(doc, response);
-    http.end();
-
-    if (error) {
-        Serial.printf("OTA: error JSON: %s\n", error.c_str());
-        return false;
-    }
-
-    newVersion = doc["tag_name"].as<String>();
     newVersion.trim();
     if (newVersion.startsWith("v") || newVersion.startsWith("V")) {
         newVersion.remove(0, 1);

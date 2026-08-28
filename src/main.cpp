@@ -61,7 +61,6 @@ String FW_VERSION;
 String NEW_VERSION;
 bool otaInProgress = false;
 int needOTA = 0;
-const char* releasesAPI  = "https://api.github.com/repos/quimturon/QLED-MiniMenu/releases/latest";
 const char* firmwareURL = "https://github.com/quimturon/QLED-MiniMenu/releases/latest/download/firmware.bin";
 
 // --- EEPROM ---

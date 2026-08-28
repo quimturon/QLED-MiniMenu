@@ -37,9 +37,16 @@ bool setup_wifi() {
     }
 
     if (WiFi.status() == WL_CONNECTED) {
+        WiFi.setSleep(false);
+        WiFi.setAutoReconnect(true);
+        WiFi.persistent(false);
         Serial.println("\nWiFi connectat!");
         Serial.print("IP: ");
         Serial.println(WiFi.localIP());
+        Serial.print("Gateway: ");
+        Serial.println(WiFi.gatewayIP());
+        Serial.print("DNS: ");
+        Serial.println(WiFi.dnsIP());
         return true;
     }
 
