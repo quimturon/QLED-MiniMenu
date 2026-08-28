@@ -332,16 +332,15 @@ void loop() {
         encVal[0] = enc1.readEncoder();
         int delta = enc1.readEncoder();
         if(delta<0){
-            debugMsg = "Enviant +briPrestatge...";
-            esp_now_send(controladorAdress, (uint8_t*)"+briPrestatge", strlen("+briPrestatge")+1);
-            Serial.println("Enviat +briPrestatge");
+            debugMsg = "Enviant +briParet...";
+            esp_now_send(controladorAdress, (uint8_t*)"+briParet", strlen("+briParet")+1);
+            Serial.println("Enviat +briParet");
         }
         else if(delta>0) {
-            debugMsg = "Enviant -briPrestatge...";
-            esp_now_send(controladorAdress, (uint8_t*)"-briPrestatge", strlen("-briPrestatge")+1);
-            Serial.println("Enviat -briPrestatge");
+            debugMsg = "Enviant -briParet...";
+            esp_now_send(controladorAdress, (uint8_t*)"-briParet", strlen("-briParet")+1);
+            Serial.println("Enviat -briParet");
         }
-        enviaBrillantor(0);
         enc1.reset();
     }
 
@@ -350,15 +349,14 @@ void loop() {
         int delta = enc2.readEncoder();
         if(delta<0){
             debugMsg = "Enviant -briPrestatge...";
-            esp_now_send(controladorAdress, (uint8_t*)"-briDespatx", strlen("-briDespatx")+1);
-            Serial.println("Enviat -briDespatx");
+            esp_now_send(controladorAdress, (uint8_t*)"-briPrestatge", strlen("-briPrestatge")+1);
+            Serial.println("Enviat -briPrestatge");
         }
         else if(delta>0) {
             debugMsg = "Enviant +briDespatx...";
-            esp_now_send(controladorAdress, (uint8_t*)"+briDespatx", strlen("+briDespatx")+1);
-            Serial.println("Enviat +briDespatx");
+            esp_now_send(controladorAdress, (uint8_t*)"+briPrestatge", strlen("+briPrestatge")+1);
+            Serial.println("Enviat +briPrestatge");
         }
-        enviaBrillantor(1);
         enc2.reset();
     }
 
@@ -431,14 +429,14 @@ void loop() {
     // Menu 2 = lights
     // Menu 3 = rtc
     if (lastButtonState1 == HIGH && buttonState1 == LOW) {
+        debugMsg = "Enviant toggleParet...";
+        esp_now_send(controladorAdress, (uint8_t*)"toggleParet", strlen("toggleParet")+1);
+        Serial.println("Enviat toggleParet");
+    }
+    if (lastButtonState2 == HIGH && buttonState2 == LOW) {
         debugMsg = "Enviant togglePrestatge...";
         esp_now_send(controladorAdress, (uint8_t*)"togglePrestatge", strlen("togglePrestatge")+1);
         Serial.println("Enviat togglePrestatge");
-    }
-    if (lastButtonState2 == HIGH && buttonState2 == LOW) {
-        debugMsg = "Enviant toggleDespatx...";
-        esp_now_send(controladorAdress, (uint8_t*)"toggleDespatx", strlen("toggleDespatx")+1);
-        Serial.println("Enviat toggleDespatx");
     }
     if (lastButtonState3 == HIGH && buttonState3 == LOW) {
         Serial.print("Canal: ");
@@ -448,14 +446,14 @@ void loop() {
         
     }
     if (lastButtonState5 == HIGH && buttonState5 == LOW) {
+        debugMsg = "Enviant presetParet...";
+        esp_now_send(controladorAdress, (uint8_t*)"presetParet", strlen("presetParet")+1);
+        Serial.println("Enviat presetParet");
+    }
+    if (lastButtonState6 == HIGH && buttonState6 == LOW) {
         debugMsg = "Enviant presetPrestatge...";
         esp_now_send(controladorAdress, (uint8_t*)"presetPrestatge", strlen("presetPrestatge")+1);
         Serial.println("Enviat presetPrestatge");
-    }
-    if (lastButtonState6 == HIGH && buttonState6 == LOW) {
-        debugMsg = "Enviant presetDespatx...";
-        esp_now_send(controladorAdress, (uint8_t*)"presetDespatx", strlen("presetDespatx")+1);
-        Serial.println("Enviat presetDespatx");
     }
     if (lastButtonState7 == HIGH && buttonState7 == LOW) {
         presetTauleta();
