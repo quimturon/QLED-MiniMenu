@@ -42,6 +42,11 @@ DateTime lastUpdateOTA;
 // --- OLED --- 
 String debugMsg = "";
 String debugMsg2 = "";
+bool alarmRinging = false;
+unsigned long lastAlarmBeep = 0;
+bool buzzerState = false;
+uint8_t alarmSavedBri0 = 0;
+uint8_t alarmSavedBri1 = 0;
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
 #define OLED_RESET -1
@@ -125,8 +130,8 @@ String callPreset(int stripIndex, int presetIndex) {
 
 #define ENCODER_STEPS 4
 
-#define BUTTON1 32
-#define BUTTON2 33
+#define BUTTON1 33
+#define BUTTON2 32
 #define BUTTON3 13
 #define BUTTON4 12
 #define ENC1_BTN 15
@@ -186,6 +191,36 @@ void debugPrint(const String &msg){
   display.fillRect(0, SCREEN_HEIGHT-8, SCREEN_WIDTH,8,SSD1306_BLACK);
   display.print(msg);
   display.display();
+}
+
+void startAlarm() {
+    alarmSavedBri0 = targetBri0;
+    alarmSavedBri1 = targetBri1;
+    alarmRinging = true;
+    lastAlarmBeep = 0;
+    buzzerState = false;
+    digitalWrite(BUZZER_PIN, LOW);
+    targetBri0 = 255;
+    targetBri1 = 255;
+}
+
+void stopAlarm() {
+    alarmRinging = false;
+    buzzerState = false;
+    digitalWrite(BUZZER_PIN, LOW);
+    targetBri0 = alarmSavedBri0;
+    targetBri1 = alarmSavedBri1;
+    sendMessage(controladorAdress, "ALARM_OFF");
+}
+
+void updateAlarmBuzzer() {
+    if (!alarmRinging || millis() - lastAlarmBeep < 250) {
+        return;
+    }
+
+    lastAlarmBeep = millis();
+    buzzerState = !buzzerState;
+    digitalWrite(BUZZER_PIN, buzzerState ? HIGH : LOW);
 }
 
 // --- Setup ---
@@ -325,6 +360,27 @@ void loop() {
     struct tm timeinfo;
 
     ensureWiFi();
+    updateAlarmBuzzer();
+
+    if (alarmRinging) {
+        bool alarmButtonPressed =
+            digitalRead(BUTTON1) == LOW || digitalRead(BUTTON2) == LOW ||
+            digitalRead(BUTTON3) == LOW || digitalRead(BUTTON4) == LOW ||
+            digitalRead(ENC1_BTN) == LOW || digitalRead(ENC2_BTN) == LOW ||
+            digitalRead(ENC3_BTN) == LOW || digitalRead(ENC4_BTN) == LOW ||
+            enc1.encoderChanged() || enc2.encoderChanged() ||
+            enc3.encoderChanged() || enc4.encoderChanged();
+
+        if (alarmButtonPressed) {
+            enc1.reset();
+            enc2.reset();
+            enc3.reset();
+            enc4.reset();
+            stopAlarm();
+        }
+
+        return;
+    }
 
     // --- Encoders ---
     bool encoderMoved = false;

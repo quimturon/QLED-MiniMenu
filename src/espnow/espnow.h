@@ -10,6 +10,7 @@
 void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len);
 
 void sendLedState();
+void sendMessage(const uint8_t *mac, const char *msg);
 
 extern char receivedTime[6];
 

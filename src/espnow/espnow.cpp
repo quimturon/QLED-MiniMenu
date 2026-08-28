@@ -18,11 +18,17 @@ extern uint8_t targetBri2;
 extern uint8_t targetBri3;
 extern uint8_t briSteps;
 extern uint8_t controladorAdress[];
+extern bool alarmRinging;
+extern void startAlarm();
 
 char receivedTime[6] = "--:--";
 
 uint8_t remotePreset0 = 2;
 uint8_t remotePreset1 = 2;
+
+void sendMessage(const uint8_t *mac, const char *msg) {
+    esp_now_send(mac, (const uint8_t *)msg, strlen(msg) + 1);
+}
 
 void sendLedState() {
     char state[80];
@@ -48,6 +54,11 @@ void onDataRecv(const uint8_t *mac,
 
     String msg = String((char *)incomingData);
     msg.trim();
+
+    if (msg == "ALARM_ON") {
+        startAlarm();
+        return;
+    }
 
     if (msg.startsWith("STATE,")) {
         int values[8];
