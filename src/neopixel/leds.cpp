@@ -113,7 +113,7 @@ void enviaBrillantor(int stripIndex) {
 
 void toggleTauleta() {
     if(ledStrips[0].targetBrightness == 0) {
-        ledStrips[0].targetBrightness = lastBri0;
+        ledStrips[0].targetBrightness = lastBri0 > 0 ? lastBri0 : maxBri;
     } else {
         lastBri0 = ledStrips[0].targetBrightness;
         ledStrips[0].targetBrightness = 0;
@@ -121,7 +121,7 @@ void toggleTauleta() {
 }
 void togglePrestatge() {
     if(ledStrips[1].targetBrightness == 0) {
-        ledStrips[1].targetBrightness = lastBri1;
+        ledStrips[1].targetBrightness = lastBri1 > 0 ? lastBri1 : maxBri;
     } else {
         lastBri1 = ledStrips[1].targetBrightness;
         ledStrips[1].targetBrightness = 0;
