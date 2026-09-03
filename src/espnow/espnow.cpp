@@ -33,9 +33,9 @@ void sendMessage(const uint8_t *mac, const char *msg) {
 void sendLedState() {
     char state[80];
     snprintf(state, sizeof(state), "STATE,%u,%u,%u,%u,%u,%u,%u,%u,%s",
+             0, 0, 0, 0,
              ledStrips[0].targetBrightness, ledStrips[0].preset,
              ledStrips[1].targetBrightness, ledStrips[1].preset,
-             bri0, remotePreset0, bri1, remotePreset1,
              receivedTime);
     esp_now_send(controladorAdress, (const uint8_t *)state, strlen(state) + 1);
 }
@@ -128,6 +128,18 @@ void onDataRecv(const uint8_t *mac,
         presetPrestatge();
         updateOLED("Rebut Prestatge Preset");
         Serial.println("Rebut ESPNOW: Preset Prestatge");
+    }
+    else if (msg == "toggleGeneral") {
+        togglePrestatge();
+    }
+    else if (msg == "+briGeneral") {
+        briPlusPrestatge();
+    }
+    else if (msg == "-briGeneral") {
+        briMinusPrestatge();
+    }
+    else if (msg == "presetGeneral") {
+        presetPrestatge();
     }
     else if (msg.startsWith("briPrestatge=")) {
         String valueStr = msg.substring(strlen("briPrestatge="));
