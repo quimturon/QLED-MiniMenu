@@ -10,7 +10,6 @@
 
 // Estrcutura de tira
 struct LEDStrip {
-    Adafruit_NeoPixel strip;
     uint8_t brightness;
     uint8_t targetBrightness;
     uint8_t preset;
