@@ -3,11 +3,12 @@
 #include <esp_now.h>
 
 #define NUM_STRIPS 2
-#define LEDS_PER_STRIP 42
-#define NUM_LEDS (NUM_STRIPS * LEDS_PER_STRIP)
+#define STRIP1_LEDS 43
+#define STRIP2_LEDS 41
+#define NUM_LEDS (STRIP1_LEDS + STRIP2_LEDS)
 #define STRIP1_START 0
-#define STRIP1_END 41
-#define STRIP2_START 42
+#define STRIP1_END 42
+#define STRIP2_START 43
 #define STRIP2_END 83
 
 extern uint8_t bri0;
@@ -25,7 +26,7 @@ LEDStrip ledStrips[NUM_STRIPS] = {
     {255, 255, 1, 50}
 };
 
-Adafruit_NeoPixel ledStrip(NUM_LEDS, 19, NEO_GRBW + NEO_KHZ800);
+Adafruit_NeoPixel ledStrip(NUM_LEDS, 18, NEO_GRBW + NEO_KHZ800);
 
 void renderStrip(int stripIndex, int firstLed, int lastLed, uint16_t hue) {
     uint32_t color;
@@ -34,7 +35,8 @@ void renderStrip(int stripIndex, int firstLed, int lastLed, uint16_t hue) {
         case 1:
             for (int ledIndex = firstLed; ledIndex <= lastLed; ledIndex++) {
                 color = ledStrip.ColorHSV(
-                    (hue + (ledIndex - firstLed) * 65536 / LEDS_PER_STRIP) % 65536,
+                    (hue + (ledIndex - firstLed) * 65536 /
+                        (lastLed - firstLed + 1)) % 65536,
                     255,
                     ledStrips[stripIndex].brightness
                 );

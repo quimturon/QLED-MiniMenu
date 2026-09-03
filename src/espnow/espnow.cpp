@@ -33,9 +33,9 @@ void sendMessage(const uint8_t *mac, const char *msg) {
 void sendLedState() {
     char state[80];
     snprintf(state, sizeof(state), "STATE,%u,%u,%u,%u,%u,%u,%u,%u,%s",
-             bri0, remotePreset0, bri1, remotePreset1,
              ledStrips[0].targetBrightness, ledStrips[0].preset,
              ledStrips[1].targetBrightness, ledStrips[1].preset,
+             bri0, remotePreset0, bri1, remotePreset1,
              receivedTime);
     esp_now_send(controladorAdress, (const uint8_t *)state, strlen(state) + 1);
 }

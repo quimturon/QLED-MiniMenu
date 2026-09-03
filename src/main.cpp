@@ -493,11 +493,12 @@ void loop() {
         Serial.println("Enviat togglePrestatge");
     }
     if (lastButtonState3 == HIGH && buttonState3 == LOW) {
-        Serial.print("Canal: ");
-        Serial.println(WiFi.channel());
+        toggleTauleta();
+        sendLedState();
     }
     if (lastButtonState4 == HIGH && buttonState4 == LOW) {
-        
+        togglePrestatge();
+        sendLedState();
     }
     if (lastButtonState5 == HIGH && buttonState5 == LOW) {
         debugMsg = "Enviant presetParet...";
