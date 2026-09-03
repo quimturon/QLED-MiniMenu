@@ -38,7 +38,7 @@ void renderStrip(int stripIndex, int firstLed, int lastLed, uint16_t hue) {
                     255,
                     ledStrips[stripIndex].brightness
                 );
-                strip.setPixelColor(ledIndex, color);
+                ledStrip.setPixelColor(ledIndex, color);
             }
             return;
         case 3:
