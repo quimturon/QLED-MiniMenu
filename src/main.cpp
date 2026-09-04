@@ -210,7 +210,7 @@ void stopAlarm() {
     stopBuzzerTone();
     targetBri0 = alarmSavedBri0;
     targetBri1 = alarmSavedBri1;
-        for (int attempt = 0; attempt < 3; attempt++) {
+        for (int attempt = 0; attempt < 6; attempt++) {
             sendMessage(controladorAdress, "ALARM_OFF");
         }
 }
