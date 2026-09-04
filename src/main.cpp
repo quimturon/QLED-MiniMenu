@@ -210,7 +210,9 @@ void stopAlarm() {
     stopBuzzerTone();
     targetBri0 = alarmSavedBri0;
     targetBri1 = alarmSavedBri1;
-    sendMessage(controladorAdress, "ALARM_OFF");
+        for (int attempt = 0; attempt < 3; attempt++) {
+            sendMessage(controladorAdress, "ALARM_OFF");
+        }
 }
 
 void updateAlarmBuzzer() {
@@ -259,14 +261,6 @@ void setup() {
     memcpy(peerInfo.peer_addr, controladorAdress, 6);
     peerInfo.channel = 0;
     peerInfo.encrypt = false;
-
-        // --- BUZZER ---
-    pinMode(BUZZER_PIN, OUTPUT);
-
-    // Beep inici
-    digitalWrite(BUZZER_PIN, HIGH);
-    delay(80);
-    digitalWrite(BUZZER_PIN, LOW);
 
     esp_now_del_peer(controladorAdress);  // elimina si existeix
     if (esp_now_add_peer(&peerInfo) != ESP_OK) {

@@ -60,6 +60,25 @@ void onDataRecv(const uint8_t *mac,
         return;
     }
 
+    if (msg == "toggleAll") {
+        toggleTauleta();
+        togglePrestatge();
+        sendLedState();
+        return;
+    }
+    if (msg == "+briAll") {
+        briPlusTauleta();
+        briPlusPrestatge();
+        sendLedState();
+        return;
+    }
+    if (msg == "-briAll") {
+        briMinusTauleta();
+        briMinusPrestatge();
+        sendLedState();
+        return;
+    }
+
     if (msg.startsWith("STATE,")) {
         int values[8];
         char receivedClock[6] = "--:--";
