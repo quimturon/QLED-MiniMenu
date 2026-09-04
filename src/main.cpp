@@ -513,11 +513,13 @@ void loop() {
     if (lastButtonState1 == HIGH && buttonState1 == LOW) {
         remoteParetBrightness = remoteParetBrightness > 0 ? 0 : 255;
         sendRemoteBrightness("setParet", remoteParetBrightness);
+        sendLedState();
         debugMsg = "Enviant setParet...";
     }
     if (lastButtonState2 == HIGH && buttonState2 == LOW) {
         remotePrestatgeBrightness = remotePrestatgeBrightness > 0 ? 0 : 255;
         sendRemoteBrightness("setPrestatge", remotePrestatgeBrightness);
+        sendLedState();
         debugMsg = "Enviant setPrestatge...";
     }
     if (lastButtonState3 == HIGH && buttonState3 == LOW) {
