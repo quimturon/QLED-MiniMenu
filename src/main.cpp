@@ -47,6 +47,10 @@ unsigned long lastAlarmBeep = 0;
 bool buzzerState = false;
 uint8_t alarmSavedBri0 = 0;
 uint8_t alarmSavedBri1 = 0;
+uint8_t alarmSavedPreset0 = 2;
+uint8_t alarmSavedPreset1 = 2;
+uint8_t alarmNoteIndex = 0;
+unsigned long alarmNoteStarted = 0;
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
 #define OLED_RESET -1
@@ -194,31 +198,52 @@ void debugPrint(const String &msg){
 }
 
 void startAlarm() {
-    alarmSavedBri0 = targetBri0;
-    alarmSavedBri1 = targetBri1;
+    alarmSavedBri0 = ledStrips[0].targetBrightness;
+    alarmSavedBri1 = ledStrips[1].targetBrightness;
+    alarmSavedPreset0 = ledStrips[0].preset;
+    alarmSavedPreset1 = ledStrips[1].preset;
     alarmRinging = true;
-    lastAlarmBeep = 0;
-    buzzerState = false;
-    startBuzzerTone(1000);
-    targetBri0 = 255;
-    targetBri1 = 255;
+    alarmNoteIndex = 0;
+    alarmNoteStarted = 0;
+    ledStrips[0].targetBrightness = 255;
+    ledStrips[1].targetBrightness = 255;
+    ledStrips[0].preset = 2;
+    ledStrips[1].preset = 2;
 }
 
 void stopAlarm() {
     alarmRinging = false;
     buzzerState = false;
     stopBuzzerTone();
-    targetBri0 = alarmSavedBri0;
-    targetBri1 = alarmSavedBri1;
+    ledStrips[0].targetBrightness = alarmSavedBri0;
+    ledStrips[1].targetBrightness = alarmSavedBri1;
+    ledStrips[0].preset = alarmSavedPreset0;
+    ledStrips[1].preset = alarmSavedPreset1;
         for (int attempt = 0; attempt < 6; attempt++) {
             sendMessage(controladorAdress, "ALARM_OFF");
         }
 }
 
 void updateAlarmBuzzer() {
-    if (alarmRinging && !buzzerState) {
-        buzzerState = true;
-        startBuzzerTone(1000);
+    static const uint16_t melody[] = {
+        523, 659, 784, 1047, 784, 659, 523, 0,
+        587, 740, 880, 1175, 880, 740, 587, 0
+    };
+    static const uint16_t durations[] = {
+        180, 180, 180, 320, 180, 180, 320, 140,
+        180, 180, 180, 320, 180, 180, 320, 500
+    };
+    constexpr uint8_t melodyLength = sizeof(melody) / sizeof(melody[0]);
+
+    if (!alarmRinging) {
+        return;
+    }
+
+    uint8_t currentNote = alarmNoteIndex;
+    if (alarmNoteStarted == 0 || millis() - alarmNoteStarted >= durations[currentNote]) {
+        alarmNoteStarted = millis();
+        startBuzzerTone(melody[currentNote]);
+        alarmNoteIndex = (currentNote + 1) % melodyLength;
     }
 }
 

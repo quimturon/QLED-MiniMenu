@@ -11,6 +11,10 @@ void setupBuzzer() {
 }
 
 void startBuzzerTone(int freq) {
+    if (freq == 0) {
+        stopBuzzerTone();
+        return;
+    }
     ledcSetup(BUZZER_CHANNEL, freq, BUZZER_RESOLUTION);
     ledcWrite(BUZZER_CHANNEL, 128);
 }
