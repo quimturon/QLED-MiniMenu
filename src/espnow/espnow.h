@@ -13,5 +13,7 @@ void sendLedState();
 void sendMessage(const uint8_t *mac, const char *msg);
 
 extern char receivedTime[6];
+extern uint8_t remoteParetBrightness;
+extern uint8_t remotePrestatgeBrightness;
 
 #endif

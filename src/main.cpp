@@ -221,6 +221,7 @@ void stopAlarm() {
     ledStrips[1].preset = alarmSavedPreset1;
         for (int attempt = 0; attempt < 6; attempt++) {
             sendMessage(controladorAdress, "ALARM_OFF");
+            sendMessage(controladorAdress, "ALARM_STOPPED");
         }
 }
 
@@ -244,6 +245,14 @@ void updateAlarmBuzzer() {
         alarmNoteStarted = millis();
         startBuzzerTone(melody[currentNote]);
         alarmNoteIndex = (currentNote + 1) % melodyLength;
+    }
+}
+
+void sendRemoteBrightness(const char *command, uint8_t brightness) {
+    char message[24];
+    snprintf(message, sizeof(message), "%s=%u", command, brightness);
+    for (int attempt = 0; attempt < 2; attempt++) {
+        esp_now_send(controladorAdress, (uint8_t *)message, strlen(message) + 1);
     }
 }
 
@@ -502,14 +511,14 @@ void loop() {
     // Menu 2 = lights
     // Menu 3 = rtc
     if (lastButtonState1 == HIGH && buttonState1 == LOW) {
-        debugMsg = "Enviant toggleParet...";
-        esp_now_send(controladorAdress, (uint8_t*)"toggleParet", strlen("toggleParet")+1);
-        Serial.println("Enviat toggleParet");
+        remoteParetBrightness = remoteParetBrightness > 0 ? 0 : 255;
+        sendRemoteBrightness("setParet", remoteParetBrightness);
+        debugMsg = "Enviant setParet...";
     }
     if (lastButtonState2 == HIGH && buttonState2 == LOW) {
-        debugMsg = "Enviant togglePrestatge...";
-        esp_now_send(controladorAdress, (uint8_t*)"togglePrestatge", strlen("togglePrestatge")+1);
-        Serial.println("Enviat togglePrestatge");
+        remotePrestatgeBrightness = remotePrestatgeBrightness > 0 ? 0 : 255;
+        sendRemoteBrightness("setPrestatge", remotePrestatgeBrightness);
+        debugMsg = "Enviant setPrestatge...";
     }
     if (lastButtonState3 == HIGH && buttonState3 == LOW) {
         toggleTauleta();
